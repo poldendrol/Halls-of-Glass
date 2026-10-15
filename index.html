@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A short roguelike up Lock Keep's endless stair, set in the world of Velloran.">
+<title>The Hall of Glass</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow column, a lit glass hall at the top, the stair and the fight below. Single dark look: the Reverse has no daylight. */
+:root{
+  --night:#0d0f1c;      /* the Reverse */
+  --vault:#161a2e;      /* panels */
+  --vault-2:#1e2440;
+  --glass:#8fc4e8;      /* Clockwork's blue, coffin glass */
+  --glass-dim:#4a6b8c;
+  --brass:#d1a85a;      /* clock brass */
+  --bone:#e7e3d6;       /* text */
+  --ash:#9a9bb0;        /* secondary text */
+  --wound:#e0717a;      /* lost years */
+  --line:#2b3354;
+  --display:"IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --story:"IM Fell English", "Iowan Old Style", Georgia, serif;
+  --body:"Alegreya Sans", "Gill Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme:dark;
+}
+html,body{background:var(--night);color:var(--bone)}
+body{font-family:var(--body);font-size:16px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance;letter-spacing:.02em}
+h1{font-size:clamp(2.2rem,7vw,3.4rem);line-height:1;color:var(--bone)}
+h2{font-size:1.6rem;color:var(--bone)}
+h3{font-size:1.15rem;color:var(--brass)}
+p{margin:0}
+.story{font-family:var(--story);font-size:1.12rem;line-height:1.55;max-width:62ch;color:var(--bone)}
+.story em{color:var(--glass)}
+.muted{color:var(--ash)}
+.eyebrow{font-size:.75rem;letter-spacing:.16em;text-transform:uppercase;color:var(--brass)}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{background:var(--vault-2);border:1px solid var(--glass-dim);color:var(--bone);padding:10px 18px;border-radius:3px;font-family:var(--display);font-size:1.1rem;letter-spacing:.03em;transition:border-color .15s,background .15s}
+.btn:hover{border-color:var(--glass);background:#252c4e}
+.btn.primary{border-color:var(--brass);color:var(--brass)}
+.btn.primary:hover{background:#2a2a3a}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,.card:focus-visible{outline:2px solid var(--glass);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+/* hall */
+.hall{position:relative;border:1px solid var(--line);background:linear-gradient(180deg,#10132a,#0b0d18);border-radius:2px;overflow:hidden}
+.hall canvas{display:block;width:100%;height:220px}
+.hall .cap{position:absolute;left:14px;bottom:10px;right:14px;display:flex;justify-content:space-between;gap:8px;font-size:.8rem;color:var(--ash);pointer-events:none}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;font-variant-numeric:tabular-nums}
+.stats b{font-family:var(--display);font-weight:400;font-size:1.3rem;color:var(--glass);margin-right:4px}
+
+/* journal */
+.journal{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.frag{border:1px solid var(--line);padding:12px 14px;background:var(--vault);min-width:0}
+.frag.locked{color:var(--ash);border-style:dashed;background:transparent}
+.frag h3{margin-bottom:4px}
+.frag.locked h3{color:var(--ash)}
+.frag p{font-family:var(--story);font-size:1rem;line-height:1.45}
+.plaques{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow:auto;font-size:.9rem;font-variant-numeric:tabular-nums}
+.plaques div{display:flex;gap:10px;border-bottom:1px solid var(--line);padding-block:4px}
+.plaques span:first-child{color:var(--glass);min-width:4.5em}
+
+/* stair */
+.stair{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.step{border-top:3px solid var(--line);padding-top:6px;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ash);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step.done{border-color:var(--glass-dim);color:var(--glass-dim)}
+.step.now{border-color:var(--brass);color:var(--brass)}
+
+/* fight */
+.arena{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.arena{grid-template-columns:1fr}}
+.side{background:var(--vault);border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.foe{border-color:#3a3360}
+.bar{height:8px;background:#0a0c16;border:1px solid var(--line);position:relative}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--glass);transition:width .3s}
+.foe .bar i{background:var(--wound)}
+.nums{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums;font-size:.9rem;color:var(--ash)}
+.intent{font-size:.95rem;border-left:2px solid var(--brass);padding-left:8px;color:var(--bone)}
+.intent b{color:var(--brass);font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);padding:2px 8px;border-radius:20px;color:var(--ash)}
+.chip.ward{color:var(--glass);border-color:var(--glass-dim)}
+.chip.str{color:var(--wound);border-color:#6b3a44}
+.flavour{font-family:var(--story);font-style:italic;color:var(--ash);font-size:.98rem}
+.ticks{display:flex;gap:6px;align-items:center}
+.tick{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--brass)}
+.tick.full{background:var(--brass)}
+.hand{display:flex;flex-wrap:wrap;gap:8px}
+.card{width:128px;min-height:150px;background:linear-gradient(180deg,#1f2646,#151a30);border:1px solid var(--glass-dim);border-radius:4px;padding:10px;display:flex;flex-direction:column;gap:6px;text-align:left;position:relative;transition:transform .12s,border-color .12s}
+.card:hover:not(:disabled){transform:translateY(-4px);border-color:var(--glass)}
+.card:disabled{opacity:.45;cursor:not-allowed}
+.card .cost{position:absolute;top:-8px;right:-8px;width:26px;height:26px;border-radius:50%;background:var(--night);border:1.5px solid var(--brass);color:var(--brass);display:grid;place-items:center;font-size:.85rem;font-variant-numeric:tabular-nums}
+.card .nm{padding-right:14px;font-family:var(--display);font-size:1.05rem;line-height:1.1;color:var(--bone)}
+.card .tx{font-size:.85rem;line-height:1.3;color:var(--ash)}
+.card .ex{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--glass-dim);margin-top:auto}
+@media (max-width:440px){.card{width:calc(50% - 4px);min-height:104px}}
+@media (max-width:560px){.step .full{display:none}}
+.log{font-size:.88rem;color:var(--ash);max-height:110px;overflow:auto;border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column-reverse;gap:2px}
+.log div:first-child{color:var(--bone)}
+.panel{background:var(--vault);border:1px solid var(--line);padding:18px;display:flex;flex-direction:column;gap:14px}
+.choices{display:flex;flex-direction:column;gap:8px}
+.choice{text-align:left;background:var(--vault-2);border:1px solid var(--line);padding:12px 14px;border-radius:3px;display:flex;flex-direction:column;gap:2px}
+.choice:hover:not(:disabled){border-color:var(--glass)}
+.choice:disabled{opacity:.5;cursor:not-allowed}
+.choice b{font-family:var(--display);font-weight:400;font-size:1.1rem;color:var(--bone)}
+.choice span{font-size:.9rem;color:var(--ash)}
+.choice.true{border-color:var(--brass)}
+.choice.true b{color:var(--brass)}
+.found{border:1px solid var(--brass);padding:12px 14px;background:#1d1a22}
+.found .eyebrow{margin-bottom:4px}
+.shake{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.foot{font-size:.8rem;color:var(--ash);border-top:1px solid var(--line);padding-top:10px}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.9rem}
+</style>
+
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+(() => {
+"use strict";
+const SAVE = "hall-of-glass-v1";
+
+/* ---------- canon: story fragments ---------- */
+const FRAGS = [
+  {id:"rumour", name:"The Rumour", text:"They say the Reverse gives back your youth. For the first few days, it does. Then the drain begins, and the years go somewhere else."},
+  {id:"machine", name:"The Machine", text:"Above the stair a machine breathes. It takes time from everyone in the Reverse and pours it into a single glass coffin, to keep one woman alive."},
+  {id:"halls", name:"The Halls", text:"Every plaque carries the same name: Liilia. Row after row of her, each one dead when the machine could no longer hold her. One coffin for every turn of the loop."},
+  {id:"clock", name:"The Clock", text:"The clock in his chest is his heart and his reservoir. Every stolen year passes through it before it reaches her. Nobody ever made it. It is only ever passed on."},
+  {id:"woods", name:"The Woods", text:"When the machine fails, he steps out of time into the Sickly Woods to take a young Liilia and feed her years to it. She does not know him. She drives a dagger into the clock, the stolen years pour into her, and he crumbles."},
+  {id:"apprentice", name:"The Apprentice", text:"A young apprentice took a broken clock from a heap of dust in the woods. He mended it, and one day he set it in his own chest. His name was Othar Hilderic."},
+  {id:"choice", name:"The Choice", text:"Whoever saves her must feed the machine, and whoever feeds it becomes him. The loop ends only if Clockwork falls and Liilia is allowed to die."}
+];
+const DEATH_FRAGS = ["rumour","machine","clock","woods"];
+const KEY_FRAGS = ["rumour","machine","halls","clock","woods","apprentice"];
+
+/* ---------- cards ---------- */
+const CARDS = {
+  dagger:{name:"Clock Dagger", cost:1, text:"Deal 6.", play:g=>hit(g,6)},
+  brace:{name:"Brace", cost:1, text:"Gain 5 ward.", play:g=>ward(g,5)},
+  rewind:{name:"Rewind", cost:1, text:"Recover 5 years.", exhaust:true, play:g=>heal(g,5)},
+  hasten:{name:"Hasten", cost:0, text:"Draw 2.", play:g=>draw(g,2)},
+  shatter:{name:"Shatter", cost:2, text:"Deal 15.", play:g=>hit(g,15)},
+  second:{name:"Second Hand", cost:1, text:"Deal 4 twice.", play:g=>{hit(g,4);hit(g,4)}},
+  stopped:{name:"Stopped Moment", cost:1, text:"Cancel the enemy's next action.", exhaust:true, play:g=>{g.foe.stunned=true;log(g,"The moment holds still.")}},
+  borrowed:{name:"Borrowed Time", cost:0, text:"Gain 2 ticks. Lose 3 years.", play:g=>{g.ticks+=2;lose(g,3,true)}},
+  echo:{name:"Echo", cost:1, text:"Deal 4 for each card played before it this turn.", play:g=>hit(g,4*g.played)},
+  pane:{name:"Glass Pane", cost:2, text:"Gain 13 ward.", play:g=>ward(g,13)},
+  unwind:{name:"Unwind", cost:1, text:"Enemy loses 2 strength. Draw 1.", play:g=>{g.foe.str=Math.max(0,g.foe.str-2);log(g,`${g.foe.name} loses strength.`);draw(g,1)}},
+  shard:{name:"Coffin Shard", cost:0, text:"Deal 7.", exhaust:true, play:g=>hit(g,7)}
+};
+const REWARD_POOL = ["shatter","second","stopped","borrowed","echo","pane","unwind","rewind"];
+const START_DECK = ["dagger","dagger","dagger","dagger","brace","brace","brace","brace","rewind","hasten"];
+
+/* ---------- the stair ---------- */
+const FLOORS = [
+  {kind:"fight", label:"I · The Pilgrim", foe:{name:"Hopeful Pilgrim", hp:22,
+    flavour:"She came to the Reverse for her youth. For three days she had it.",
+    intents:[{t:"atk",v:5,say:"claws at you"},{t:"atk",v:3,n:2,say:"flails"},{t:"def",v:5,say:"cowers"}]}},
+  {kind:"fight", label:"II · The Timelord", foe:{name:"Timelord", hp:34,
+    flavour:"One of Clockwork's wardens. It hunts anyone who tries to leave.",
+    intents:[{t:"atk",v:7,say:"swings its hour-blade"},{t:"def",v:9,say:"raises its shield"},{t:"atk",v:12,say:"strikes on the hour"}]}},
+  {kind:"fight", label:"III · The Collector", foe:{name:"The Debt Collector", hp:42,
+    flavour:"It collects the debt of people dying in agony. Yours is overdue.",
+    intents:[{t:"drain",v:6,say:"collects your years"},{t:"buff",v:2,say:"tallies the ledger"},{t:"atk",v:4,n:3,say:"knocks three times"}]}},
+  {kind:"halls", label:"IV · The Halls"},
+  {kind:"fight", label:"V · Clockwork", boss:true, foe:{name:"Clockwork, Lord of Time", hp:72,
+    flavour:"Faceless, armoured in blue. The clock in his chest ticks too fast. “Just a little more time.”",
+    intents:[{t:"buff",v:3,say:"winds the clock"},{t:"atk",v:9,say:"tolls"},{t:"drain",v:8,say:"takes your years"},{t:"def",v:12,say:"turns back the hour"},{t:"atk",v:5,n:3,say:"strikes three, four, five"}]}}
+];
+
+/* ---------- save ---------- */
+function blank(){return {coffins:[], frags:[], dust:false};}
+let save = blank();
+try{ const s = JSON.parse(localStorage.getItem(SAVE)); if(s && Array.isArray(s.coffins)) save = Object.assign(blank(), s); }catch(e){}
+function persist(){ try{ localStorage.setItem(SAVE, JSON.stringify(save)); }catch(e){} }
+const has = id => save.frags.includes(id);
+const keyCount = () => KEY_FRAGS.filter(has).length;
+function learn(id){ if(has(id)) return null; save.frags.push(id); persist(); return FRAGS.find(f=>f.id===id); }
+const bonusYears = () => Math.min(12, save.coffins.length*2);
+
+/* ---------- run state ---------- */
+let G = null;
+const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+function newRun(){
+  const max = 32 + bonusYears();
+  G = {floor:0, years:max, max, deck:START_DECK.slice(), found:[], screen:"floor"};
+  enterFloor();
+}
+function enterFloor(){
+  const F = FLOORS[G.floor];
+  if(F.kind==="halls"){ G.screen="halls"; render(); return; }
+  const f = F.foe;
+  G.foe = {name:f.name, hp:f.hp, max:f.hp, ward:0, str:0, i:0, stunned:false, intents:f.intents, flavour:f.flavour, boss:!!F.boss, said:{}};
+  G.draw = shuffle(G.deck.slice()); G.discard=[]; G.hand=[]; G.exhausted=[]; G.log=[];
+  G.screen="fight";
+  log(G, F.boss ? "The stair ends. He is waiting by the coffin." : `${f.name} blocks the stair.`);
+  startTurn();
+}
+function startTurn(){ G.ticks=3; G.ward=0; G.played=0; draw(G,5); render(); }
+function draw(g,n){ for(let k=0;k<n;k++){ if(!g.draw.length){ g.draw=shuffle(g.discard); g.discard=[]; } if(!g.draw.length) break; g.hand.push(g.draw.pop()); } }
+function log(g,msg){ g.log.unshift(msg); if(g.log.length>40) g.log.pop(); }
+function hit(g,v){
+  const f=g.foe; let d=v; const soak=Math.min(f.ward,d); f.ward-=soak; d-=soak; f.hp=Math.max(0,f.hp-d);
+  log(g, soak? `You deal ${v}. ${soak} lost on its guard.` : `You deal ${v}.`);
+  if(f.boss) bossTalk(g);
+}
+function ward(g,v){ g.ward+=v; log(g,`You gain ${v} ward.`); }
+function heal(g,v){ const b=g.years; g.years=Math.min(g.max,g.years+v); log(g,`You recover ${g.years-b} years.`); }
+function lose(g,v,self){
+  let d=v; if(!self){ const soak=Math.min(g.ward,d); g.ward-=soak; d-=soak; }
+  g.years=Math.max(0,g.years-d); return d;
+}
+function bossTalk(g){
+  const f=g.foe, pct=f.hp/f.max;
+  const lines=[[.66,"“You don't understand. She only needs a little more time.”"],[.33,"“I have done this before. I will do it again.”"]];
+  for(const [p,l] of lines) if(pct<=p && !f.said[p]){ f.said[p]=1; log(g,l); }
+}
+
+function playCard(idx){
+  const id=G.hand[idx], c=CARDS[id];
+  if(c.cost>G.ticks || G.screen!=="fight") return;
+  G.ticks-=c.cost; G.hand.splice(idx,1);
+  c.play(G); G.played++;
+  (c.exhaust?G.exhausted:G.discard).push(id);
+  if(G.years<=0) return die(G.foe.name+" (your own borrowed time)");
+  if(G.foe.hp<=0) return victory();
+  render();
+}
+function endTurn(){
+  G.discard.push(...G.hand); G.hand=[];
+  const f=G.foe, it=f.intents[f.i%f.intents.length]; f.i++;
+  f.ward=0;
+  if(f.stunned){ f.stunned=false; log(G,`${f.name} is caught in the stopped moment and does nothing.`); }
+  else if(it.t==="atk"){ let tot=0; for(let k=0;k<(it.n||1);k++) tot+=lose(G,it.v+f.str); log(G,`${f.name} ${it.say}. You lose ${tot} years.`); }
+  else if(it.t==="drain"){ const d=lose(G,it.v+f.str); f.hp=Math.min(f.max,f.hp+d); log(G,`${f.name} ${it.say}. You lose ${d} years; it gains ${d}.`); }
+  else if(it.t==="def"){ f.ward=it.v; log(G,`${f.name} ${it.say}.`); }
+  else if(it.t==="buff"){ f.str+=it.v; log(G,`${f.name} ${it.say}. Strength +${it.v}.`); }
+  if(G.years<=0) return die(f.name);
+  startTurn();
+  if(it.t==="atk"||it.t==="drain"){ const y=document.querySelector(".you"); if(y){y.classList.add("shake");} }
+}
+function intentText(f){
+  if(f.stunned) return "<b>Frozen</b> in a stopped moment";
+  const it=f.intents[f.i%f.intents.length];
+  if(it.t==="atk") return `<b>Attack ${it.v+f.str}${it.n?" × "+it.n:""}</b>, ${it.say}`;
+  if(it.t==="drain") return `<b>Drain ${it.v+f.str}</b>, ${it.say}`;
+  if(it.t==="def") return `<b>Guard ${it.v}</b>, ${it.say}`;
+  return `<b>Strength +${it.v}</b>, ${it.say}`;
+}
+
+function victory(){
+  if(FLOORS[G.floor].boss){ G.screen="unmask"; const fr=learn("apprentice"); if(fr) G.found.push(fr); render(); return; }
+  G.screen="reward";
+  const pool=shuffle(REWARD_POOL.slice()); G.offer=pool.slice(0,3);
+  render();
+}
+function takeReward(id){ if(id) G.deck.push(id); else heal(G,10); G.floor++; enterFloor(); }
+
+function addCoffin(cause, kind){
+  const turn = save.coffins.length+1;
+  save.coffins.push({turn, floor:G.floor, cause, kind, learned:G.found.map(f=>f.name)});
+  persist();
+}
+function die(cause){
+  let fr=null;
+  const next = DEATH_FRAGS.find(id=>!has(id));
+  if(next){ fr=learn(next); G.found.push(fr); }
+  addCoffin(cause,"death");
+  G.screen="death"; G.deathFrag=fr; G.cause=cause; render();
+}
+function saveHer(){
+  addCoffin("you saved her","loop");
+  G.screen="loop"; render();
+}
+function letGo(){
+  learn("choice");
+  save.dust=true; persist();
+  G.screen="true"; render();
+}
+
+/* ---------- views ---------- */
+const $app=document.getElementById("app");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const roman=["I","II","III","IV","V"];
+
+function hallBlock(caption){
+  const n=save.coffins.length;
+  return `<div class="hall"><canvas id="hallcv" aria-label="The hall of glass coffins, ${n} coffins"></canvas>
+  <div class="cap"><span>${caption||""}</span><span>${save.dust?"Dust":n+" coffin"+(n===1?"":"s")}</span></div></div>`;
+}
+function stairBlock(){
+  return `<div class="stair" aria-label="The endless stair">${FLOORS.map((f,i)=>`<div class="step ${i<G.floor?"done":i===G.floor?"now":""}" title="${esc(f.label)}">${roman[i]}<span class="full"> · ${esc(f.label.split(" · ")[1])}</span></div>`).join("")}</div>`;
+}
+function foundBlock(list){
+  return list.filter(Boolean).map(f=>`<div class="found"><div class="eyebrow">The coffins remember · ${esc(f.name)}</div><p class="story">${esc(f.text)}</p></div>`).join("");
+}
+
+function viewTitle(){
+  const k=keyCount(), n=save.coffins.length;
+  const plaques=save.coffins.slice().reverse().map(c=>`<div><span>Turn ${c.turn}</span><span>${c.kind==="loop"?"Clockwork fell, and someone picked up the clock.":`Fell on floor ${roman[c.floor]} to ${esc(c.cause)}.`}${c.learned.length?` Learned: ${esc(c.learned.join(", "))}.`:""}</span></div>`).join("");
+  const frags=FRAGS.map(f=>{
+    const known=has(f.id);
+    return `<div class="frag ${known?"":"locked"}"><h3>${known?esc(f.name):"Unremembered"}</h3><p>${known?esc(f.text):(f.id==="choice"?"Remember the other six to understand this one.":"A coffin will remember this.")}</p></div>`;
+  }).join("");
+  return `
+  <header style="display:flex;flex-direction:column;gap:8px">
+    <div class="eyebrow">Lock Keep · The Reverse</div>
+    <h1>The Hall of Glass</h1>
+    <p class="story">An endless stair climbs out of the world and into the Reverse, where time runs on stolen years. Climb it and stop <em>Clockwork, Lord of Time</em>. When you fall, your years feed the machine, the loop turns, and one more glass coffin joins the hall.</p>
+  </header>
+  ${hallBlock(n? "Each coffin holds a Liilia. Each one remembers something." : "The hall is empty. It won't stay that way.")}
+  ${save.dust?`<div class="panel"><h2>The hall is dust</h2><p class="story">You broke the loop. Temporalis is back in the sea, and every coffin turned to dust together.</p><div class="row"><button class="btn primary" data-act="new">Climb again</button><span id="resetzone"></span></div></div>`:
+  `<div class="row"><button class="btn primary" data-act="new">Climb the stair</button><span class="muted">${n? `You begin with ${32+bonusYears()} years. Each coffin adds 2.` : "You begin with 32 years."}</span></div>`}
+  <div class="stats"><span><b>${n}</b>coffins</span><span><b>${k}/6</b>fragments remembered</span><span><b>${has("choice")?"Yes":"No"}</b>loop broken</span></div>
+  <section style="display:flex;flex-direction:column;gap:10px"><h2>What the coffins remember</h2><div class="journal">${frags}</div></section>
+  ${n?`<section style="display:flex;flex-direction:column;gap:8px"><h2>Plaques</h2><div class="plaques">${plaques}</div></section>`:""}
+  <div class="foot row" style="justify-content:space-between"><span>A prototype set in Velloran, from the <i>Clockwork, Lord of Time</i> campaign. Your hall is saved in this browser.</span>${n||save.frags.length?`<span id="wipe"><button class="btn" style="font-size:.85rem;padding:4px 10px" data-act="askwipe">Forget everything</button></span>`:""}</div>`;
+}
+
+function viewFight(){
+  const f=G.foe;
+  const hand=G.hand.map((id,i)=>{const c=CARDS[id];return `<button class="card" data-card="${i}" ${c.cost>G.ticks?"disabled":""} aria-label="${esc(c.name)}, costs ${c.cost}. ${esc(c.text)}"><span class="cost">${c.cost}</span><span class="nm">${esc(c.name)}</span><span class="tx">${esc(c.text)}</span>${c.exhaust?'<span class="ex">Once per fight</span>':""}</button>`}).join("");
+  return `
+  ${stairBlock()}
+  <div class="arena">
+    <div class="side foe">
+      <div class="eyebrow">${f.boss?"The Lord of Time":"On the stair"}</div>
+      <h2>${esc(f.name)}</h2>
+      <p class="flavour">${esc(f.flavour)}</p>
+      <div class="bar"><i style="width:${100*f.hp/f.max}%"></i></div>
+      <div class="nums"><span>${f.hp} / ${f.max} years</span></div>
+      <div class="chips">${f.ward?`<span class="chip ward">Guard ${f.ward}</span>`:""}${f.str?`<span class="chip str">Strength ${f.str}</span>`:""}</div>
+      <div class="intent">Next: ${intentText(f)}</div>
+    </div>
+    <div class="side you">
+      <div class="eyebrow">The party</div>
+      <h2>Your years</h2>
+      <div class="bar"><i style="width:${100*G.years/G.max}%"></i></div>
+      <div class="nums"><span>${G.years} / ${G.max} years</span><span>Deck ${G.draw.length} · Spent ${G.discard.length}</span></div>
+      <div class="chips">${G.ward?`<span class="chip ward">Ward ${G.ward}</span>`:""}</div>
+      <div class="row" style="justify-content:space-between"><div class="ticks" aria-label="${G.ticks} ticks left">${Array.from({length:Math.max(3,G.ticks)},(_,i)=>`<span class="tick ${i<G.ticks?"full":""}"></span>`).join("")}<span class="muted" style="font-size:.85rem;margin-left:4px">${G.ticks} ticks</span></div>
+      <button class="btn primary" data-act="end">End turn</button></div>
+    </div>
+  </div>
+  <div class="hand">${hand||'<span class="muted">Your hand is empty. End the turn.</span>'}</div>
+  <div class="log" aria-live="polite">${G.log.map(l=>`<div>${esc(l)}</div>`).join("")}</div>`;
+}
+
+function viewReward(){
+  return `${stairBlock()}<div class="panel"><div class="eyebrow">The stair goes on</div><h2>${esc(G.foe.name)} falls</h2>
+  <p class="muted">You have ${G.years} of ${G.max} years. Take one thing up the stair.</p>
+  <div class="choices">${G.offer.map(id=>`<button class="choice" data-take="${id}"><b>${esc(CARDS[id].name)} · ${CARDS[id].cost} tick${CARDS[id].cost===1?"":"s"}</b><span>${esc(CARDS[id].text)}${CARDS[id].exhaust?" Once per fight.":""}</span></button>`).join("")}
+  <button class="choice" data-take=""><b>Rest on the step</b><span>Recover 10 years.</span></button></div></div>`;
+}
+
+function viewHalls(){
+  const known=has("halls");
+  return `${stairBlock()}${hallBlock("The halls of dead wives")}<div class="panel"><div class="eyebrow">Floor IV</div><h2>The Halls</h2>
+  <p class="story">The stair opens into a long gallery of glass coffins. ${save.coffins.length?`There are ${save.coffins.length+1} of them. You count one more than last time.`:"There are more than you can count, and every one holds a woman."} Somewhere above, a machine breathes in time with your heart.</p>
+  ${G.hallsDone?foundBlock(G.hallsFound?[G.hallsFound]:[])+`<p class="muted">${esc(G.hallsMsg)}</p><div><button class="btn primary" data-act="climb">Climb to the machine</button></div>`:
+  `<div class="choices">
+    <button class="choice" data-hall="read"><b>Read the plaques</b><span>${known?"You already know what they say. Recover 6 years in the quiet.":"Find out who lies here."}</span></button>
+    <button class="choice" data-hall="rest"><b>Rest beside the newest coffin</b><span>Recover 14 years. The glass is warm.</span></button>
+    <button class="choice" data-hall="shard"><b>Break a sliver from an old coffin</b><span>Add two Coffin Shards to your deck. Lose 4 years.</span></button>
+  </div>`}</div>`;
+}
+function hallChoice(c){
+  G.hallsDone=true; G.hallsFound=null;
+  if(c==="read"){ const fr=learn("halls"); if(fr){G.found.push(fr);G.hallsFound=fr;G.hallsMsg="You walk the rows until you reach the end. The last coffin is empty and waiting.";} else {heal(G,6);G.hallsMsg="You read them anyway. Recovered 6 years.";} }
+  if(c==="rest"){ heal(G,14); G.hallsMsg=`You sit with her a while. You have ${G.years} years.`; }
+  if(c==="shard"){ G.deck.push("shard","shard"); lose(G,4,true); G.hallsMsg="The glass cuts your hand. The shard is sharp enough to cut time."; if(G.years<=0) return die("the glass"); }
+  render();
+}
+
+function viewDeath(){
+  const n=save.coffins.length;
+  return `${hallBlock("A new coffin")}<div class="panel"><div class="eyebrow">Turn ${n} ends</div><h2>Your years feed the machine</h2>
+  <p class="story">You fell on floor ${roman[G.floor]} to ${esc(G.cause)}. The time you had left drains up the stair and into the glass. The machine holds her a little longer. Somewhere, a new coffin appears in the hall.</p>
+  ${foundBlock(G.found)}
+  ${!G.deathFrag && !G.found.length?`<p class="muted">This coffin remembers nothing new. ${keyCount()<6?"Some truths are only found on the stair itself.":""}</p>`:""}
+  <p class="muted">Your next climb starts with ${32+bonusYears()} years.</p>
+  <div class="row"><button class="btn primary" data-act="new">Climb again</button><button class="btn" data-act="title">Walk the hall</button></div></div>`;
+}
+
+function viewUnmask(){
+  const k=keyCount(), ready=k>=6;
+  return `${hallBlock("The newest coffin")}<div class="panel"><div class="eyebrow">Floor V</div><h2>The clock stops</h2>
+  <p class="story">Clockwork goes down on one knee beside the coffin. His faceplate cracks and falls, and underneath is a tired old man with ink stains on his fingers. In the coffin, an old woman breathes, barely. The clock in his chest is still turning.</p>
+  ${foundBlock(G.found)}
+  <p class="story">“Please,” he says. “She only needs a little more time.”</p>
+  <div class="choices">
+    <button class="choice" data-act="save"><b>Save her</b><span>Take the clock and keep the machine running. She lives.</span></button>
+    <button class="choice true" data-act="letgo" ${ready?"":"disabled"}><b>Let her go</b><span>${ready?"Break the clock and the machine. Let Liilia die.":`You don't understand enough yet to choose this. (${k}/6 remembered)`}</span></button>
+  </div></div>`;
+}
+function viewLoop(){
+  return `${hallBlock("One more")}<div class="panel"><div class="eyebrow">The loop turns</div><h2>Someone picks up the clock</h2>
+  <p class="story">You lift the clock from his chest. It is warm and it is still ticking. The machine needs feeding, and she still needs time, and the clock fits so easily in your hand.</p>
+  <p class="story">Years later, in the Sickly Woods, a man in blue armour steps out of nowhere to fetch a young woman. She does not know him. She drives a dagger into the clock in his chest.</p>
+  <p class="muted">A coffin was added to the hall. ${keyCount()<6?`The coffins still hold ${6-keyCount()} truth${6-keyCount()===1?"":"s"} you haven't remembered.`:""}</p>
+  <div class="row"><button class="btn primary" data-act="new">Climb again</button><button class="btn" data-act="title">Walk the hall</button></div></div>`;
+}
+function viewTrue(){
+  return `${hallBlock("Dust")}<div class="panel"><div class="eyebrow">The loop breaks</div><h2>Let her go</h2>
+  ${foundBlock([FRAGS.find(f=>f.id==="choice")])}
+  <p class="story">You break the clock. Nothing pours out of it this time. The machine slows, and stops. Liilia opens her eyes once, looks at the old man beside her, and seems to know him. Then she is gone.</p>
+  <p class="story">With no one left to walk back to the woods, the Reverse lets go. The green ring sinks. Temporalis returns to the southern sea, and every coffin in the hall turns to dust together.</p>
+  <div class="row"><button class="btn primary" data-act="title">See the hall</button></div></div>`;
+}
+
+function render(){
+  const v = !G||G.screen==="title" ? viewTitle()
+    : G.screen==="fight"?viewFight():G.screen==="reward"?viewReward():G.screen==="halls"?viewHalls()
+    : G.screen==="death"?viewDeath():G.screen==="unmask"?viewUnmask():G.screen==="loop"?viewLoop():viewTrue();
+  $app.innerHTML=v;
+  drawHall();
+}
+
+$app.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b||b.disabled) return;
+  if(b.dataset.card!==undefined) return playCard(+b.dataset.card);
+  if(b.dataset.take!==undefined) return takeReward(b.dataset.take||null);
+  if(b.dataset.hall) return hallChoice(b.dataset.hall);
+  const a=b.dataset.act;
+  if(a==="new"){ if(save.dust){ save=blank(); persist(); } newRun(); window.scrollTo(0,0); }
+  else if(a==="end") endTurn();
+  else if(a==="climb"){ G.floor++; enterFloor(); }
+  else if(a==="save") saveHer();
+  else if(a==="letgo") letGo();
+  else if(a==="title"){ G=null; render(); window.scrollTo(0,0); }
+  else if(a==="askwipe"){ document.getElementById("wipe").innerHTML=`<span class="confirm">Forget every coffin and fragment? <button class="btn" style="font-size:.85rem;padding:4px 10px" data-act="wipe">Forget</button><button class="btn" style="font-size:.85rem;padding:4px 10px" data-act="title">Keep</button></span>`; }
+  else if(a==="wipe"){ save=blank(); persist(); G=null; render(); }
+});
+
+/* ---------- the hall, drawn ---------- */
+let raf=0;
+function drawHall(){
+  cancelAnimationFrame(raf);
+  const cv=document.getElementById("hallcv"); if(!cv) return;
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const W=cv.clientWidth, H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr;
+  const x=cv.getContext("2d"); x.setTransform(dpr,0,0,dpr,0,0);
+  const total = save.coffins.length + (G && (G.screen==="unmask"||G.screen==="halls")?1:0);
+  const dust = save.dust;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const t0=performance.now();
+  // perspective rows receding to a vanishing point
+  const slots=[]; const perRow=Math.max(4,Math.floor(W/90));
+  for(let i=0;i<Math.max(total,1);i++){
+    const row=Math.floor(i/perRow), col=i%perRow;
+    const depth=Math.min(row,6), s=1/(1+depth*.45);
+    const inRow=Math.min(perRow,Math.max(total,1)-row*perRow), span=W*.92*s, cx=W/2 + (col-(inRow-1)/2)*(span/perRow);
+    const cy=H*.78 - (1-s)*H*.62;
+    slots.push({cx,cy,s,i,newest:i===total-1&&total>0});
+  }
+  slots.sort((a,b)=>a.s-b.s);
+  function frame(now){
+    const t=(now-t0)/1000;
+    x.clearRect(0,0,W,H);
+    // floor glow
+    const g=x.createRadialGradient(W/2,H*.85,10,W/2,H*.85,W*.6);
+    g.addColorStop(0,"rgba(143,196,232,.10)"); g.addColorStop(1,"rgba(143,196,232,0)");
+    x.fillStyle=g; x.fillRect(0,0,W,H);
+    // pillars
+    x.strokeStyle="rgba(74,107,140,.25)"; x.lineWidth=1;
+    for(let k=0;k<=6;k++){ const px=W*(k/6); x.beginPath(); x.moveTo(px,H); x.lineTo(W/2+(px-W/2)*.25,H*.12); x.stroke(); }
+    if(total===0){
+      // an empty plinth
+      x.strokeStyle="rgba(209,168,90,.5)"; x.setLineDash([4,4]); coffin(x,W/2,H*.72,1,null); x.stroke(); x.setLineDash([]);
+    }
+    for(const sl of slots){
+      if(total===0) break;
+      const a = dust ? Math.max(0,1-t*.35 + sl.i*.02) : 1;
+      if(a<=0) { if(dust) particles(x,sl,t); continue; }
+      const shimmer = reduce?0:Math.sin(t*1.4+sl.i)*.5+.5;
+      x.globalAlpha=a;
+      coffin(x,sl.cx,sl.cy,sl.s);
+      const gg=x.createLinearGradient(sl.cx-20*sl.s,0,sl.cx+20*sl.s,0);
+      gg.addColorStop(0,`rgba(143,196,232,${.10+shimmer*.08})`); gg.addColorStop(.5,`rgba(231,227,214,${.18+shimmer*.12})`); gg.addColorStop(1,"rgba(143,196,232,.08)");
+      x.fillStyle=gg; x.fill();
+      x.strokeStyle=sl.newest?"rgba(209,168,90,.95)":"rgba(143,196,232,.6)"; x.lineWidth=sl.newest?1.6:1; x.stroke();
+      // the figure within
+      x.fillStyle="rgba(231,227,214,.22)"; x.beginPath(); x.ellipse(sl.cx,sl.cy-22*sl.s,5*sl.s,5*sl.s,0,0,7); x.fill();
+      x.fillRect(sl.cx-4*sl.s,sl.cy-16*sl.s,8*sl.s,30*sl.s);
+      if(sl.newest && !dust){ x.fillStyle=`rgba(209,168,90,${.12+shimmer*.15})`; x.beginPath(); x.ellipse(sl.cx,sl.cy+30*sl.s,22*sl.s,5*sl.s,0,0,7); x.fill(); }
+      x.globalAlpha=1;
+      if(dust) particles(x,sl,t);
+    }
+    if(!reduce && document.body.contains(cv)) raf=requestAnimationFrame(frame);
+  }
+  raf=requestAnimationFrame(frame);
+}
+function coffin(x,cx,cy,s){
+  const w=17*s, h=36*s;
+  x.beginPath();
+  x.moveTo(cx-w*.55,cy-h); x.lineTo(cx+w*.55,cy-h); x.lineTo(cx+w,cy-h*.55);
+  x.lineTo(cx+w*.6,cy+h); x.lineTo(cx-w*.6,cy+h); x.lineTo(cx-w,cy-h*.55); x.closePath();
+}
+function particles(x,sl,t){
+  for(let k=0;k<6;k++){
+    const p=((t*.4+k*.17+sl.i*.07)%1);
+    x.fillStyle=`rgba(231,227,214,${(1-p)*.35})`;
+    x.fillRect(sl.cx+Math.sin(k*3+sl.i)*14*sl.s, sl.cy+30*sl.s - p*80*sl.s, 1.5,1.5);
+  }
+}
+addEventListener("resize",()=>drawHall());
+
+render();
+})();
+</script>
+
+</body>
+</html>
