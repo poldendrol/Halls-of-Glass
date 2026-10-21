@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="A boss rush against Clockwork, Lord of Time, set in the world of Velloran.">
+<meta name="description" content="Climb Lock Keep and learn who Clockwork, Lord of Time, used to be. A roguelike set in the world of Velloran.">
 <title>The Hall of Glass</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&family=Alegreya+Sans:wght@400;500;700&display=swap">
 <style>
-/* Layout: one narrow column, a lit glass hall at the top, the five phases and the fight below. Single dark look: the Reverse has no daylight. */
+/* Layout: one narrow column, a lit glass hall at the top, the stair and the fight below. Single dark look: the Reverse has no daylight. */
 :root{
   --night:#0d0f1c;      /* the Reverse */
   --vault:#161a2e;      /* panels */
@@ -125,18 +125,18 @@ button:focus-visible,.card:focus-visible{outline:2px solid var(--glass);outline-
 <script>
 (() => {
 "use strict";
-const SAVE = "hall-of-glass-v2";
+const SAVE = "hall-of-glass-v3";
 
-/* ---------- canon: flashbacks, one per phase of his life ---------- */
+/* ---------- canon: what the climb teaches you about Clockwork ---------- */
 const FRAGS = [
-  {id:"halls", name:"The Halls", text:"Behind him the halls run on forever, and every plaque says Liilia. He talks to the newest coffin every day. Every day she is a little older."},
-  {id:"fall", name:"The Fall", text:"When his own years ran out, he took other people's. When those ran short, he dragged all of Temporalis into the Reverse. The green ring rose on the sea, and the old and dying came from all over Velloran, because the rumour said the Reverse makes you young."},
-  {id:"machine", name:"The Machine", text:"At the top of Lock Keep he found the machine, and an older Liilia in its coffin, already dead. He sealed her in glass and laid his own wife in her place. Then he mended the clock and set it in his chest."},
-  {id:"curse", name:"The Curse", text:"His wife was twenty and looked forty, and she aged faster every week. He hired anyone who would help and chased every rumour of a cure, all the way to an old keep with an endless stair."},
+  {id:"fall", name:"The Fall", text:"When his own years ran out, Clockwork took other people's. When those ran short, he dragged all of Temporalis into the Reverse. The green ring rose on the sea, and the old and dying came from all over Velloran, because the rumour said the Reverse makes you young."},
+  {id:"machine", name:"The Machine", text:"At the top of Lock Keep a young man found the machine, and an older Liilia in its coffin, already dead. He sealed her in glass and laid his own wife in her place. Then he mended a broken clock and set it in his chest."},
+  {id:"curse", name:"The Curse", text:"His wife was twenty and looked forty, and she aged faster every week. He hired anyone who would help and chased every rumour of a cure, all the way to an old keep with an endless stair. His name was Othar Hilderic."},
+  {id:"halls", name:"The Halls", text:"Every plaque carries the same name: Liilia. Row after row of her, each one dead when the machine could no longer hold her. One coffin for every turn of the loop. Clockwork talks to the newest one every day."},
   {id:"woods", name:"The Woods", text:"On their first night in the Sickly Woods, a man in blue armour came for Liilia. She drove Othar's dagger into the clock in his chest, and the man crumbled. Othar took the broken clock from the dust. Nobody ever made it. It has only ever been passed on."},
   {id:"choice", name:"The Choice", text:"Whoever saves her must feed the machine, and whoever feeds it becomes him. The loop ends only if Clockwork falls and Liilia is allowed to die."}
 ];
-const KEY_FRAGS = ["halls","fall","machine","curse","woods"];
+const KEY_FRAGS = ["fall","machine","curse","halls","woods"];
 
 /* ---------- cards ---------- */
 const CARDS = {
@@ -146,33 +146,36 @@ const CARDS = {
   hasten:{name:"Hasten", cost:0, text:"Draw 2.", play:g=>draw(g,2)},
   shatter:{name:"Shatter", cost:2, text:"Deal 15.", play:g=>hit(g,15)},
   second:{name:"Second Hand", cost:1, text:"Deal 4 twice.", play:g=>{hit(g,4);hit(g,4)}},
-  stopped:{name:"Stopped Moment", cost:1, text:"Cancel his next action.", exhaust:true, play:g=>{g.foe.stunned=true;log(g,"The moment holds still.")}},
+  stopped:{name:"Stopped Moment", cost:1, text:"Cancel the enemy's next action.", exhaust:true, play:g=>{g.foe.stunned=true;log(g,"The moment holds still.")}},
   borrowed:{name:"Borrowed Time", cost:0, text:"Gain 2 ticks. Lose 3 years.", play:g=>{g.ticks+=2;lose(g,3,true)}},
   echo:{name:"Echo", cost:1, text:"Deal 4 for each card played before it this turn.", play:g=>hit(g,4*g.played)},
   pane:{name:"Glass Pane", cost:2, text:"Gain 13 ward.", play:g=>ward(g,13)},
-  unwind:{name:"Unwind", cost:1, text:"He loses 2 strength. Draw 1.", play:g=>{g.foe.str=Math.max(0,g.foe.str-2);log(g,`${g.foe.name} loses strength.`);draw(g,1)}},
+  unwind:{name:"Unwind", cost:1, text:"Enemy loses 2 strength. Draw 1.", play:g=>{g.foe.str=Math.max(0,g.foe.str-2);log(g,`${g.foe.name} loses strength.`);draw(g,1)}},
   shard:{name:"Coffin Shard", cost:0, text:"Deal 7.", exhaust:true, play:g=>hit(g,7)}
 };
-const REWARD_POOL = ["shatter","second","stopped","borrowed","echo","pane","unwind","rewind","shard"];
+const REWARD_POOL = ["shatter","second","stopped","borrowed","echo","pane","unwind","rewind"];
 const START_DECK = ["dagger","dagger","dagger","dagger","brace","brace","brace","brace","rewind","hasten"];
 
-/* ---------- the fight: five phases, backwards through his life ---------- */
+/* ---------- the stair: every floor is a piece of Clockwork's story ---------- */
 const FLOORS = [
-  {label:"I · The Lord of Time", frag:"halls", foe:{name:"Clockwork, Lord of Time", hp:40,
-    flavour:"Faceless, armoured in blue, standing by the newest coffin. The clock in his chest ticks too fast.",
-    intents:[{t:"buff",v:2,say:"winds the clock"},{t:"atk",v:10,say:"tolls"},{t:"def",v:10,say:"turns back the hour"},{t:"atk",v:6,n:2,say:"strikes twice"}]}},
-  {label:"II · The Feeder", frag:"fall", foe:{name:"Clockwork, the Feeder", hp:46,
-    flavour:"His armour is newer here. Behind him, a kingdom sinks into the Reverse.",
-    intents:[{t:"drain",v:8,say:"drinks the years of the dying"},{t:"atk",v:6,n:2,say:"cuts twice"},{t:"drain",v:10,say:"takes your years"}]}},
-  {label:"III · The Bargain", frag:"machine", foe:{name:"Othar, with the clock in his chest", hp:48,
-    flavour:"Half man, half armour. He is still feeding the machine with his own years.",
-    intents:[{t:"sac",v:5,s:3,say:"pours his own years into the clock"},{t:"atk",v:12,say:"swings the hour-blade"},{t:"def",v:8,say:"stands over the coffin"}]}},
-  {label:"IV · The Husband", frag:"curse", foe:{name:"Othar, the husband", hp:50,
-    flavour:"A tired man in a travel-worn coat who apologises too much. He will not let you near her.",
-    intents:[{t:"atk",v:4,n:3,say:"lashes out in desperation"},{t:"heal",v:10,say:"remembers why he is doing this"},{t:"atk",v:14,say:"strikes with everything he has"}]}},
-  {label:"V · The Apprentice", frag:"woods", last:true, foe:{name:"Othar Hilderic", hp:46,
-    flavour:"A thin young apprentice with ink on his fingers and a broken clock on a chain at his throat. He is very frightened.",
-    intents:[{t:"def",v:12,say:"fiddles with the broken clock"},{t:"atk",v:9,say:"swings his dagger"},{t:"atk",v:6,n:2,say:"stabs wildly"}]}}
+  {kind:"fight", label:"I · The Pilgrim", frag:"fall", foe:{name:"Hopeful Pilgrim", hp:30,
+    flavour:"She came because of the rumour that Clockwork gives back your youth. For three days she had it.",
+    half:"“He promised. He promised we would be young again.”",
+    intents:[{t:"atk",v:7,say:"claws at you"},{t:"atk",v:4,n:2,say:"flails"},{t:"def",v:5,say:"cowers"}]}},
+  {kind:"fight", label:"II · The Timelord", frag:"machine", foe:{name:"Timelord", hp:44,
+    flavour:"One of Clockwork's wardens. It guards the stair to his machine and hunts anyone who tries to leave.",
+    half:"“The Lord of Time was a man once. He climbed this stair like you.”",
+    intents:[{t:"atk",v:9,say:"swings its hour-blade"},{t:"def",v:9,say:"raises its shield"},{t:"atk",v:15,say:"strikes on the hour"}]}},
+  {kind:"fight", label:"III · The Collector", frag:"curse", foe:{name:"The Debt Collector", hp:52,
+    flavour:"It keeps Clockwork's ledger of every year he has taken. The first entry is in a young man's handwriting.",
+    half:"“Every debt is paid in the end. His wife's is the largest.”",
+    intents:[{t:"drain",v:8,say:"collects your years"},{t:"buff",v:2,say:"tallies the ledger"},{t:"atk",v:5,n:3,say:"knocks three times"}]}},
+  {kind:"halls", label:"IV · The Halls", frag:"halls"},
+  {kind:"fight", label:"V · Clockwork", frag:"woods", boss:true, foe:{name:"Clockwork, Lord of Time", hp:78,
+    flavour:"Faceless, armoured in blue, standing by the newest coffin. The clock in his chest ticks too fast. “Just a little more time.”",
+    intents:[{t:"buff",v:3,say:"winds the clock"},{t:"atk",v:11,say:"tolls"},{t:"drain",v:10,say:"takes your years"},{t:"def",v:12,say:"turns back the hour"},{t:"atk",v:6,n:3,say:"strikes three, four, five"}],
+    unmasked:{name:"Othar Hilderic", flavour:"His faceplate lies cracked on the floor. Underneath is a tired old man with ink stains on his fingers, standing between you and his wife.",
+      intents:[{t:"heal",v:8,say:"whispers to the coffin"},{t:"atk",v:5,n:3,say:"lashes out in desperation"},{t:"atk",v:15,say:"strikes with everything he has left"}]}}}
 ];
 
 /* ---------- save ---------- */
@@ -182,7 +185,8 @@ try{ const s = JSON.parse(localStorage.getItem(SAVE)); if(s && Array.isArray(s.c
 function persist(){ try{ localStorage.setItem(SAVE, JSON.stringify(save)); }catch(e){} }
 const has = id => save.frags.includes(id);
 const keyCount = () => KEY_FRAGS.filter(has).length;
-function learn(id){ if(has(id)) return null; save.frags.push(id); persist(); return FRAGS.find(f=>f.id===id); }
+const fragById = id => FRAGS.find(f=>f.id===id);
+function learn(id){ if(has(id)) return null; save.frags.push(id); persist(); return fragById(id); }
 const bonusYears = () => Math.min(12, save.coffins.length*2);
 
 /* ---------- run state ---------- */
@@ -190,17 +194,20 @@ let G = null;
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
 
 function newRun(){
-  const max = 34 + bonusYears();
-  G = {floor:0, years:max, max, deck:START_DECK.slice(), found:[], screen:"fight"};
+  const max = 32 + bonusYears();
+  G = {floor:0, years:max, max, deck:START_DECK.slice(), found:[], screen:"floor"};
   enterFloor();
 }
 function enterFloor(){
-  const F = FLOORS[G.floor], f = F.foe;
-  G.foe = {name:f.name, hp:f.hp, max:f.hp, ward:0, str:0, i:0, stunned:false, intents:f.intents, flavour:f.flavour, said:{}, known:has(F.frag)};
+  const F = FLOORS[G.floor];
+  G.hallsDone=false;
+  if(F.kind==="halls"){ G.screen="halls"; render(); return; }
+  const f = F.foe;
+  G.foe = {name:f.name, hp:f.hp, max:f.hp, ward:0, str:0, i:0, stunned:false, intents:f.intents, flavour:f.flavour, half:f.half, unmasked:f.unmasked, boss:!!F.boss, said:{}, known:has(F.frag)};
   G.draw = shuffle(G.deck.slice()); G.discard=[]; G.hand=[]; G.exhausted=[]; G.log=[];
   G.screen="fight";
-  log(G, G.floor===0 ? "He turns from the coffin. “Just a little more time.”" : "Time runs backward. He is younger now.");
-  if(!G.foe.known) log(G, "You don't know this part of his life yet. You can't read his moves.");
+  log(G, F.boss ? "The stair ends. He turns from the coffin to face you." : `${f.name} blocks the stair.`);
+  if(!G.foe.known) log(G, "You don't know this part of Clockwork's story yet, so you can't read its moves.");
   startTurn();
 }
 function startTurn(){ G.ticks=3; G.ward=0; G.played=0; draw(G,5); render(); }
@@ -208,8 +215,8 @@ function draw(g,n){ for(let k=0;k<n;k++){ if(!g.draw.length){ g.draw=shuffle(g.d
 function log(g,msg){ g.log.unshift(msg); if(g.log.length>40) g.log.pop(); }
 function hit(g,v){
   const f=g.foe; let d=v; const soak=Math.min(f.ward,d); f.ward-=soak; d-=soak; f.hp=Math.max(0,f.hp-d);
-  log(g, soak? `You deal ${v}. ${soak} lost on his guard.` : `You deal ${v}.`);
-  bossTalk(g);
+  log(g, soak? `You deal ${v}. ${soak} lost on its guard.` : `You deal ${v}.`);
+  talk(g);
 }
 function ward(g,v){ g.ward+=v; log(g,`You gain ${v} ward.`); }
 function heal(g,v){ const b=g.years; g.years=Math.min(g.max,g.years+v); log(g,`You recover ${g.years-b} years.`); }
@@ -217,16 +224,14 @@ function lose(g,v,self){
   let d=v; if(!self){ const soak=Math.min(g.ward,d); g.ward-=soak; d-=soak; }
   g.years=Math.max(0,g.years-d); return d;
 }
-const LINES = [
-  "“You don't understand. She only needs a little more time.”",
-  "“They came here for youth. I gave them a purpose.”",
-  "“It's only my own years. Nobody else has to pay. Not yet.”",
-  "“I'm sorry. I'm sorry. But I can't lose her.”",
-  "“Please. I don't even know who you are.”"
-];
-function bossTalk(g){
+function talk(g){
   const f=g.foe;
-  if(f.hp/f.max<=.5 && !f.said.half){ f.said.half=1; log(g,LINES[G.floor]); }
+  if(f.hp<=0 || f.hp/f.max>.5 || f.said.half) return;
+  f.said.half=1;
+  if(f.unmasked){
+    const u=f.unmasked; f.name=u.name; f.flavour=u.flavour; f.intents=u.intents; f.i=0; f.str=0; f.ward=0; f.unmasked=null;
+    log(g,"His faceplate cracks and falls. “You don't understand. She only needs a little more time.”");
+  } else if(f.half) log(g,f.half);
 }
 
 function playCard(idx){
@@ -235,7 +240,7 @@ function playCard(idx){
   G.ticks-=c.cost; G.hand.splice(idx,1);
   c.play(G); G.played++;
   (c.exhaust?G.exhausted:G.discard).push(id);
-  if(G.years<=0) return die();
+  if(G.years<=0) return die(G.foe.name+" (your own borrowed time)");
   if(G.foe.hp<=0) return victory();
   render();
 }
@@ -243,59 +248,56 @@ function endTurn(){
   G.discard.push(...G.hand); G.hand=[];
   const f=G.foe, it=f.intents[f.i%f.intents.length]; f.i++;
   f.ward=0;
-  if(f.stunned){ f.stunned=false; log(G,`He is caught in the stopped moment and does nothing.`); }
-  else if(it.t==="atk"){ let tot=0; for(let k=0;k<(it.n||1);k++) tot+=lose(G,it.v+f.str); log(G,`He ${it.say}. You lose ${tot} years.`); }
-  else if(it.t==="drain"){ const d=lose(G,it.v+f.str); f.hp=Math.min(f.max,f.hp+d); log(G,`He ${it.say}. You lose ${d} years and he gains ${d}.`); }
-  else if(it.t==="def"){ f.ward=it.v; log(G,`He ${it.say}.`); }
-  else if(it.t==="buff"){ f.str+=it.v; log(G,`He ${it.say}. Strength +${it.v}.`); }
-  else if(it.t==="sac"){ f.hp=Math.max(1,f.hp-it.v); f.str+=it.s; log(G,`He ${it.say}. He loses ${it.v} years and gains ${it.s} strength.`); }
-  else if(it.t==="heal"){ const b=f.hp; f.hp=Math.min(f.max,f.hp+it.v); log(G,`He ${it.say}. He recovers ${f.hp-b} years.`); }
-  if(G.years<=0) return die();
+  if(f.stunned){ f.stunned=false; log(G,`${f.name} is caught in the stopped moment and does nothing.`); }
+  else if(it.t==="atk"){ let tot=0; for(let k=0;k<(it.n||1);k++) tot+=lose(G,it.v+f.str); log(G,`${f.name} ${it.say}. You lose ${tot} years.`); }
+  else if(it.t==="drain"){ const d=lose(G,it.v+f.str); f.hp=Math.min(f.max,f.hp+d); log(G,`${f.name} ${it.say}. You lose ${d} years and it gains ${d}.`); }
+  else if(it.t==="def"){ f.ward=it.v; log(G,`${f.name} ${it.say}.`); }
+  else if(it.t==="buff"){ f.str+=it.v; log(G,`${f.name} ${it.say}. Strength +${it.v}.`); }
+  else if(it.t==="heal"){ const b=f.hp; f.hp=Math.min(Math.ceil(f.max/2),f.hp+it.v); log(G,`${f.name} ${it.say}. He recovers ${f.hp-b} years.`); }
+  if(G.years<=0) return die(f.name);
   startTurn();
   if(it.t==="atk"||it.t==="drain"){ const y=document.querySelector(".you"); if(y){y.classList.add("shake");} }
 }
 function intentText(f){
   if(f.stunned) return "<b>Frozen</b> in a stopped moment";
-  if(!f.known) return "<b>Unknown.</b> You don't know this part of his life yet.";
+  if(!f.known) return "<b>Unknown.</b> You don't know this part of his story yet.";
   const it=f.intents[f.i%f.intents.length];
   if(it.t==="atk") return `<b>Attack ${it.v+f.str}${it.n?" × "+it.n:""}</b>, ${it.say}`;
   if(it.t==="drain") return `<b>Drain ${it.v+f.str}</b>, ${it.say}`;
   if(it.t==="def") return `<b>Guard ${it.v}</b>, ${it.say}`;
-  if(it.t==="sac") return `<b>Lose ${it.v}, strength +${it.s}</b>, ${it.say}`;
   if(it.t==="heal") return `<b>Recover ${it.v}</b>, ${it.say}`;
   return `<b>Strength +${it.v}</b>, ${it.say}`;
 }
 
 function victory(){
   const F=FLOORS[G.floor];
-  const fr=learn(F.frag); G.phaseFrag=FRAGS.find(f=>f.id===F.frag); G.phaseNew=!!fr; if(fr) G.found.push(fr);
-  if(F.last){ G.screen="unmask"; render(); return; }
+  const fr=learn(F.frag); G.floorFrag=fragById(F.frag); G.floorNew=!!fr; if(fr) G.found.push(fr);
+  if(F.boss){ G.screen="unmask"; render(); return; }
   G.screen="reward";
   const pool=shuffle(REWARD_POOL.slice()); G.offer=pool.slice(0,3);
   render();
 }
 function takeReward(id){ if(id) G.deck.push(id); else heal(G,10); G.floor++; enterFloor(); }
 
-function addCoffin(kind){
+function addCoffin(cause, kind){
   const turn = save.coffins.length+1;
-  save.coffins.push({turn, floor:G.floor, kind, learned:G.found.map(f=>f.name)});
+  save.coffins.push({turn, floor:G.floor, cause, kind, learned:G.found.map(f=>f.name)});
   persist();
 }
-function die(){
+function die(cause){
   const fr=learn(FLOORS[G.floor].frag);
   if(fr) G.found.push(fr);
   G.deathFrag=fr;
-  addCoffin("death");
-  G.screen="death"; render();
+  addCoffin(cause,"death");
+  G.screen="death"; G.cause=cause; render();
 }
-function saveHer(){ addCoffin("loop"); G.screen="loop"; render(); }
+function saveHer(){ addCoffin("you saved her","loop"); G.screen="loop"; render(); }
 function letGo(){ learn("choice"); save.dust=true; persist(); G.screen="true"; render(); }
 
 /* ---------- views ---------- */
 const $app=document.getElementById("app");
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const roman=["I","II","III","IV","V"];
-const phaseName = i => FLOORS[i].label.split(" · ")[1];
 
 function hallBlock(caption){
   const n=save.coffins.length;
@@ -303,42 +305,43 @@ function hallBlock(caption){
   <div class="cap"><span>${caption||""}</span><span>${save.dust?"Dust":n+" coffin"+(n===1?"":"s")}</span></div></div>`;
 }
 function stairBlock(){
-  return `<div class="stair" aria-label="The five phases of his life">${FLOORS.map((f,i)=>`<div class="step ${i<G.floor?"done":i===G.floor?"now":""}" title="${esc(f.label)}">${roman[i]}<span class="full"> · ${esc(phaseName(i))}</span></div>`).join("")}</div>`;
+  return `<div class="stair" aria-label="The endless stair">${FLOORS.map((f,i)=>`<div class="step ${i<G.floor?"done":i===G.floor?"now":""}" title="${esc(f.label)}">${roman[i]}<span class="full"> · ${esc(f.label.split(" · ")[1])}</span></div>`).join("")}</div>`;
 }
 function foundBlock(list, label){
-  return list.filter(Boolean).map(f=>`<div class="found"><div class="eyebrow">${label||"Flashback"} · ${esc(f.name)}</div><p class="story">${esc(f.text)}</p></div>`).join("");
+  return list.filter(Boolean).map(f=>`<div class="found"><div class="eyebrow">${label||"Clockwork's story"} · ${esc(f.name)}</div><p class="story">${esc(f.text)}</p></div>`).join("");
 }
 
 function viewTitle(){
   const k=keyCount(), n=save.coffins.length;
-  const plaques=save.coffins.slice().reverse().map(c=>`<div><span>Turn ${c.turn}</span><span>${c.kind==="loop"?"You spared him, and the loop turned again.":`Fell in phase ${roman[c.floor]}, ${esc(phaseName(c.floor))}.`}${c.learned.length?` Remembered: ${esc(c.learned.join(", "))}.`:""}</span></div>`).join("");
+  const plaques=save.coffins.slice().reverse().map(c=>`<div><span>Turn ${c.turn}</span><span>${c.kind==="loop"?"Clockwork fell, and someone picked up the clock.":`Fell on floor ${roman[c.floor]} to ${esc(c.cause)}.`}${c.learned.length?` Learned: ${esc(c.learned.join(", "))}.`:""}</span></div>`).join("");
   const frags=FRAGS.map((f,i)=>{
     const known=has(f.id);
-    return `<div class="frag ${known?"":"locked"}"><h3>${known?esc(f.name):(f.id==="choice"?"The Choice":`Phase ${roman[i]}`)}</h3><p>${known?esc(f.text):(f.id==="choice"?"Remember all five phases of his life to understand this one.":"Break this phase, or fall in it, to remember it.")}</p></div>`;
+    const where = f.id==="choice" ? "Learn the other five to understand this one." : `Found on floor ${roman[i]} of the stair.`;
+    return `<div class="frag ${known?"":"locked"}"><h3>${known?esc(f.name):(f.id==="choice"?"The Choice":"Unremembered")}</h3><p>${known?esc(f.text):where}</p></div>`;
   }).join("");
   return `
   <header style="display:flex;flex-direction:column;gap:8px">
     <div class="eyebrow">Lock Keep · The Reverse</div>
     <h1>The Hall of Glass</h1>
-    <p class="story">At the top of Lock Keep, beside a glass coffin, <em>Clockwork, Lord of Time</em> is waiting. In the Reverse time runs backward, so every phase of him you break drives him further back into his own life, until you reach the man he used to be. When you fall, your years feed the machine, the loop turns, and one more coffin joins the hall.</p>
+    <p class="story"><em>Clockwork, Lord of Time</em> drained a kingdom to keep one woman alive. Climb the endless stair of Lock Keep to stop him, and learn who he was on the way. When you fall, your years feed his machine, the loop turns, and one more glass coffin joins the hall.</p>
   </header>
   ${hallBlock(n? "Each coffin holds a Liilia. Each one remembers something." : "The hall is empty. It won't stay that way.")}
-  ${save.dust?`<div class="panel"><h2>The hall is dust</h2><p class="story">You broke the loop. Temporalis is back in the sea, and every coffin turned to dust together.</p><div class="row"><button class="btn primary" data-act="new">Face him again</button></div></div>`:
-  `<div class="row"><button class="btn primary" data-act="new">Face Clockwork</button><span class="muted">${n? `You begin with ${34+bonusYears()} years. Each coffin adds 2.` : "You begin with 34 years."}</span></div>`}
-  <div class="stats"><span><b>${n}</b>coffins</span><span><b>${k}/5</b>flashbacks remembered</span><span><b>${has("choice")?"Yes":"No"}</b>loop broken</span></div>
-  <section style="display:flex;flex-direction:column;gap:10px"><h2>Who he was</h2><div class="journal">${frags}</div></section>
+  ${save.dust?`<div class="panel"><h2>The hall is dust</h2><p class="story">You broke the loop. Temporalis is back in the sea, and every coffin turned to dust together.</p><div class="row"><button class="btn primary" data-act="new">Climb again</button></div></div>`:
+  `<div class="row"><button class="btn primary" data-act="new">Climb the stair</button><span class="muted">${n? `You begin with ${32+bonusYears()} years. Each coffin adds 2.` : "You begin with 32 years."}</span></div>`}
+  <div class="stats"><span><b>${n}</b>coffins</span><span><b>${k}/5</b>pieces of his story</span><span><b>${has("choice")?"Yes":"No"}</b>loop broken</span></div>
+  <section style="display:flex;flex-direction:column;gap:10px"><h2>Who Clockwork was</h2><div class="journal">${frags}</div></section>
   ${n?`<section style="display:flex;flex-direction:column;gap:8px"><h2>Plaques</h2><div class="plaques">${plaques}</div></section>`:""}
   <div class="foot row" style="justify-content:space-between"><span>A prototype set in Velloran, from the <i>Clockwork, Lord of Time</i> campaign. Your hall is saved in this browser.</span>${n||save.frags.length?`<span id="wipe"><button class="btn" style="font-size:.85rem;padding:4px 10px" data-act="askwipe">Forget everything</button></span>`:""}</div>`;
 }
 
 function viewFight(){
   const f=G.foe;
-  const hand=G.hand.map((id,i)=>{const c=CARDS[id];return `<button class="card" data-card="${i}" ${c.cost>G.ticks?"disabled":""} aria-label="${esc(c.name)}, costs ${c.cost}. ${esc(c.text)}"><span class="cost">${c.cost}</span><span class="nm">${esc(c.name)}</span><span class="tx">${esc(c.text)}</span>${c.exhaust?'<span class="ex">Once per phase</span>':""}</button>`}).join("");
+  const hand=G.hand.map((id,i)=>{const c=CARDS[id];return `<button class="card" data-card="${i}" ${c.cost>G.ticks?"disabled":""} aria-label="${esc(c.name)}, costs ${c.cost}. ${esc(c.text)}"><span class="cost">${c.cost}</span><span class="nm">${esc(c.name)}</span><span class="tx">${esc(c.text)}</span>${c.exhaust?'<span class="ex">Once per fight</span>':""}</button>`}).join("");
   return `
   ${stairBlock()}
   <div class="arena">
     <div class="side foe">
-      <div class="eyebrow">Phase ${roman[G.floor]} · ${esc(phaseName(G.floor))}</div>
+      <div class="eyebrow">${f.boss?"The Lord of Time":"On the stair"}</div>
       <h2>${esc(f.name)}</h2>
       <p class="flavour">${esc(f.flavour)}</p>
       <div class="bar"><i style="width:${100*f.hp/f.max}%"></i></div>
@@ -361,52 +364,71 @@ function viewFight(){
 }
 
 function viewReward(){
-  return `${stairBlock()}<div class="panel"><div class="eyebrow">Phase ${roman[G.floor]} breaks</div><h2>Time runs backward</h2>
-  ${foundBlock([G.phaseFrag], G.phaseNew?"New flashback":"Flashback")}
-  <p class="muted">You have ${G.years} of ${G.max} years. Next you face ${esc(FLOORS[G.floor+1].foe.name)}. Take one thing with you.</p>
-  <div class="choices">${G.offer.map(id=>`<button class="choice" data-take="${id}"><b>${esc(CARDS[id].name)} · ${CARDS[id].cost} tick${CARDS[id].cost===1?"":"s"}</b><span>${esc(CARDS[id].text)}${CARDS[id].exhaust?" Once per phase.":""}</span></button>`).join("")}
-  <button class="choice" data-take=""><b>Catch your breath</b><span>Recover 10 years.</span></button></div></div>`;
+  return `${stairBlock()}<div class="panel"><div class="eyebrow">The stair goes on</div><h2>${esc(G.foe.name)} falls</h2>
+  ${foundBlock([G.floorFrag], G.floorNew?"You learn":"You remember")}
+  <p class="muted">You have ${G.years} of ${G.max} years. Take one thing up the stair.</p>
+  <div class="choices">${G.offer.map(id=>`<button class="choice" data-take="${id}"><b>${esc(CARDS[id].name)} · ${CARDS[id].cost} tick${CARDS[id].cost===1?"":"s"}</b><span>${esc(CARDS[id].text)}${CARDS[id].exhaust?" Once per fight.":""}</span></button>`).join("")}
+  <button class="choice" data-take=""><b>Rest on the step</b><span>Recover 10 years.</span></button></div></div>`;
+}
+
+function viewHalls(){
+  const known=has("halls");
+  return `${stairBlock()}${hallBlock("The halls of dead wives")}<div class="panel"><div class="eyebrow">Floor IV</div><h2>The Halls</h2>
+  <p class="story">The stair opens into a long gallery of glass coffins. ${save.coffins.length?`There are ${save.coffins.length+1} of them. You count one more than last time.`:"There are more than you can count, and every one holds a woman."} Somewhere above, Clockwork's machine breathes in time with your heart.</p>
+  ${G.hallsDone?foundBlock(G.hallsFound?[G.hallsFound]:[],"You learn")+`<p class="muted">${esc(G.hallsMsg)}</p><div><button class="btn primary" data-act="climb">Climb to the machine</button></div>`:
+  `<div class="choices">
+    <button class="choice" data-hall="read"><b>Read the plaques</b><span>${known?"You already know what they say. Recover 6 years in the quiet.":"Find out who lies here."}</span></button>
+    <button class="choice" data-hall="rest"><b>Rest beside the newest coffin</b><span>Recover 14 years. The glass is warm.</span></button>
+    <button class="choice" data-hall="shard"><b>Break a sliver from an old coffin</b><span>Add two Coffin Shards to your deck. Lose 4 years.</span></button>
+  </div>`}</div>`;
+}
+function hallChoice(c){
+  G.hallsDone=true; G.hallsFound=null;
+  if(c==="read"){ const fr=learn("halls"); if(fr){G.found.push(fr);G.hallsFound=fr;G.hallsMsg="You walk the rows until you reach the end. The last coffin is empty and waiting.";} else {heal(G,6);G.hallsMsg="You read them anyway. Recovered 6 years.";} }
+  if(c==="rest"){ heal(G,14); G.hallsMsg=`You sit with her a while. You have ${G.years} years.`; }
+  if(c==="shard"){ G.deck.push("shard","shard"); lose(G,4,true); G.hallsMsg="The glass cuts your hand. The shard is sharp enough to cut time."; if(G.years<=0) return die("the glass"); }
+  render();
 }
 
 function viewDeath(){
   const n=save.coffins.length;
   return `${hallBlock("A new coffin")}<div class="panel"><div class="eyebrow">Turn ${n} ends</div><h2>Your years feed the machine</h2>
-  <p class="story">You fell in phase ${roman[G.floor]}, ${esc(phaseName(G.floor))}. He takes the years you had left and pours them into the glass. The machine holds her a little longer, and a new coffin appears in the hall.</p>
+  <p class="story">You fell on floor ${roman[G.floor]} to ${esc(G.cause)}. The time you had left drains up the stair and into Clockwork's machine. It holds her a little longer, and a new coffin appears in the hall.</p>
   ${foundBlock(G.found,"The coffin remembers")}
-  ${G.deathFrag?`<p class="muted">Next time you'll be able to read his moves in this phase.</p>`:`<p class="muted">This coffin remembers nothing new.</p>`}
-  <p class="muted">Your next attempt starts with ${34+bonusYears()} years.</p>
-  <div class="row"><button class="btn primary" data-act="new">Face him again</button><button class="btn" data-act="title">Walk the hall</button></div></div>`;
+  ${G.deathFrag?`<p class="muted">Next time you'll be able to read the moves on this floor.</p>`:`<p class="muted">This coffin remembers nothing new.</p>`}
+  <p class="muted">Your next climb starts with ${32+bonusYears()} years.</p>
+  <div class="row"><button class="btn primary" data-act="new">Climb again</button><button class="btn" data-act="title">Walk the hall</button></div></div>`;
 }
 
 function viewUnmask(){
   const k=keyCount(), ready=k>=5;
-  return `${hallBlock("The newest coffin")}<div class="panel"><div class="eyebrow">Phase V breaks</div><h2>The man he used to be</h2>
-  ${foundBlock([G.phaseFrag], G.phaseNew?"New flashback":"Flashback")}
-  <p class="story">The halls are gone. You are standing in the Sickly Woods at night. A frightened young apprentice kneels in the leaves, holding a broken clock he has just taken from a heap of dust. Behind him, a young woman with a bloody dagger is watching you.</p>
-  <p class="story">“It's broken,” he says. “I think I can fix it.”</p>
+  return `${hallBlock("The newest coffin")}<div class="panel"><div class="eyebrow">Floor V</div><h2>The clock stops</h2>
+  <p class="story">Othar goes down on one knee beside the coffin. In the glass, an old woman breathes, barely. The clock in his chest is still turning, and as it slows you see one last memory in its face.</p>
+  ${foundBlock([G.floorFrag], G.floorNew?"You learn":"You remember")}
+  <p class="story">“Please,” he says. “She only needs a little more time.”</p>
   <div class="choices">
-    <button class="choice" data-act="save"><b>Spare him</b><span>Let him keep the clock. Someday it will save her life.</span></button>
-    <button class="choice true" data-act="letgo" ${ready?"":"disabled"}><b>Let her go</b><span>${ready?"Take the clock and break it for good. Without it there is no Clockwork, and Liilia will die.":`You don't understand enough about him yet to choose this. (${k}/5 remembered)`}</span></button>
+    <button class="choice" data-act="save"><b>Save her</b><span>Take the clock and keep the machine running. She lives.</span></button>
+    <button class="choice true" data-act="letgo" ${ready?"":"disabled"}><b>Let her go</b><span>${ready?"Break the clock and the machine. Let Liilia die.":`You don't understand him well enough yet to choose this. (${k}/5 pieces of his story)`}</span></button>
   </div></div>`;
 }
 function viewLoop(){
-  return `${hallBlock("One more")}<div class="panel"><div class="eyebrow">The loop turns</div><h2>He mends the clock</h2>
-  <p class="story">You leave him in the woods with the broken clock. He mends it. When the curse takes hold of Liilia, he follows it to Lock Keep, sets it in his chest, and feeds the machine, first with his own years and then with everyone else's.</p>
-  <p class="story">Years later, a man in blue armour steps out of the Reverse into the Sickly Woods to fetch a young woman. She does not know him. She drives a dagger into the clock in his chest.</p>
-  <p class="muted">A coffin was added to the hall. ${keyCount()<5?`You still don't remember ${5-keyCount()} part${5-keyCount()===1?"":"s"} of his life.`:""}</p>
-  <div class="row"><button class="btn primary" data-act="new">Face him again</button><button class="btn" data-act="title">Walk the hall</button></div></div>`;
+  return `${hallBlock("One more")}<div class="panel"><div class="eyebrow">The loop turns</div><h2>Someone picks up the clock</h2>
+  <p class="story">You lift the clock from his chest. It is warm and it is still ticking. The machine needs feeding, and she still needs time, and the clock fits so easily in your hand.</p>
+  <p class="story">Years later, in the Sickly Woods, a man in blue armour steps out of nowhere to fetch a young woman. She does not know him. She drives a dagger into the clock in his chest.</p>
+  <p class="muted">A coffin was added to the hall. ${keyCount()<5?`You still don't know ${5-keyCount()} piece${5-keyCount()===1?"":"s"} of his story.`:""}</p>
+  <div class="row"><button class="btn primary" data-act="new">Climb again</button><button class="btn" data-act="title">Walk the hall</button></div></div>`;
 }
 function viewTrue(){
   return `${hallBlock("Dust")}<div class="panel"><div class="eyebrow">The loop breaks</div><h2>Let her go</h2>
-  ${foundBlock([FRAGS.find(f=>f.id==="choice")],"You understand")}
-  <p class="story">You take the clock from Othar's hands and break it on a stone. Nothing pours out of it this time. Far away, at the top of Lock Keep, the machine slows and stops. The old Liilia in the coffin opens her eyes once, as if she recognises someone, and then she is gone.</p>
+  ${foundBlock([fragById("choice")],"You understand")}
+  <p class="story">You break the clock. Nothing pours out of it this time. The machine slows, and stops. Liilia opens her eyes once, looks at the old man beside her, and seems to know him. Then she is gone, and Othar Hilderic goes with her.</p>
   <p class="story">With no one left to walk back to the woods, the Reverse lets go. The green ring sinks. Temporalis returns to the southern sea, and every coffin in the hall turns to dust together.</p>
   <div class="row"><button class="btn primary" data-act="title">See the hall</button></div></div>`;
 }
 
 function render(){
   const v = !G||G.screen==="title" ? viewTitle()
-    : G.screen==="fight"?viewFight():G.screen==="reward"?viewReward()
+    : G.screen==="fight"?viewFight():G.screen==="reward"?viewReward():G.screen==="halls"?viewHalls()
     : G.screen==="death"?viewDeath():G.screen==="unmask"?viewUnmask():G.screen==="loop"?viewLoop():viewTrue();
   $app.innerHTML=v;
   drawHall();
@@ -416,13 +438,15 @@ $app.addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b||b.disabled) return;
   if(b.dataset.card!==undefined) return playCard(+b.dataset.card);
   if(b.dataset.take!==undefined) return takeReward(b.dataset.take||null);
+  if(b.dataset.hall) return hallChoice(b.dataset.hall);
   const a=b.dataset.act;
   if(a==="new"){ if(save.dust){ save=blank(); persist(); } newRun(); window.scrollTo(0,0); }
   else if(a==="end") endTurn();
+  else if(a==="climb"){ G.floor++; enterFloor(); }
   else if(a==="save") saveHer();
   else if(a==="letgo") letGo();
   else if(a==="title"){ G=null; render(); window.scrollTo(0,0); }
-  else if(a==="askwipe"){ document.getElementById("wipe").innerHTML=`<span class="confirm">Forget every coffin and flashback? <button class="btn" style="font-size:.85rem;padding:4px 10px" data-act="wipe">Forget</button><button class="btn" style="font-size:.85rem;padding:4px 10px" data-act="title">Keep</button></span>`; }
+  else if(a==="askwipe"){ document.getElementById("wipe").innerHTML=`<span class="confirm">Forget every coffin and everything you learned? <button class="btn" style="font-size:.85rem;padding:4px 10px" data-act="wipe">Forget</button><button class="btn" style="font-size:.85rem;padding:4px 10px" data-act="title">Keep</button></span>`; }
   else if(a==="wipe"){ save=blank(); persist(); G=null; render(); }
 });
 
@@ -434,7 +458,7 @@ function drawHall(){
   const dpr=Math.min(2,window.devicePixelRatio||1);
   const W=cv.clientWidth, H=cv.clientHeight; cv.width=W*dpr; cv.height=H*dpr;
   const x=cv.getContext("2d"); x.setTransform(dpr,0,0,dpr,0,0);
-  const total = save.coffins.length + (G && G.screen==="unmask"?1:0);
+  const total = save.coffins.length + (G && (G.screen==="unmask"||G.screen==="halls")?1:0);
   const dust = save.dust;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const t0=performance.now();
